@@ -7,20 +7,22 @@ import os
 from dotenv import load_dotenv
 
 
+
 REGION_CODES = {
-    'novosib': "RU-NVS",
     'barnaul': 'RU-ALT',
-    'omsk': 'RU-OMS',
-    'tomsk': 'RU-TOM',
+    'chita': 'RU-ZAB',
+    'irkutsk': 'RU-IRK',
     'kemerovo': 'RU-KEM',
     'krasnoyarsk': 'RU-KYA',
-    'irkutsk': 'RU-IRK',
-    'chita': 'RU-ZAB',
-    'tyva': 'RU-TY',
-    'buratia': 'RU-BU',
+    'novosib': "RU-NVS",
+    'omsk': 'RU-OMS',
     'altai': 'RU-GA',
-    'khakasia': 'RU-KK'
+    'buratia': 'RU-BU',
+    'tyva': 'RU-TY',
+    'khakasia': 'RU-KK',
+    'tomsk': 'RU-TOM'
 }
+
 
 load_dotenv()
 TOKEN = os.getenv('AUTH_TOKEN')
@@ -50,7 +52,7 @@ def check_update():
         stats = requests.get(url_parse_reg).json()
         if dateconv(stats[0]['date']) == TODAY_DATE:
             count_updated += 1
-    if count_updated == 12:
+    if count_updated == len(REGION_CODES):
         return True
     else:
         return False
@@ -91,10 +93,40 @@ def get_last_date():
     headers["Content-Type"] = "application/json"
     data = requests.get(URL, headers=headers).json()
     for k in data:
-        # print(type(k['pub_date']))
         all_dates.append(k['pub_date'])
     last_date = max(all_dates)
     return strtodate(last_date)
+
+
+def get_stat(date_to_parse):
+    """Получение данных из БД за опредленную дату на все регионы"""
+    headers = CaseInsensitiveDict()
+    headers["Accept"] = "application/json"
+    headers["Authorization"] = f'Bearer {TOKEN}'
+    headers["Content-Type"] = "application/json"
+    data = requests.get(URL, headers=headers).json()
+    sick_sum = 0
+    for reg_name in REGION_CODES:
+        for k in data:
+            if (k['pub_date'] == date_to_parse) and (k['region'] == reg_name):
+                sick_sum += k['sick_today']
+                print(f"{k['region']} {k['sick_today']} {k['died_today']}")
+    print(f'сумма больных {sick_sum}')
+
+
+def get_stat_reg(date_to_parse, region):
+    """Получение данных из БД за опредленную дату на один region"""
+    headers = CaseInsensitiveDict()
+    headers["Accept"] = "application/json"
+    headers["Authorization"] = f'Bearer {TOKEN}'
+    headers["Content-Type"] = "application/json"
+    data = requests.get(URL, headers=headers).json()
+    for k in data:
+        if (k['pub_date'] == date_to_parse) and (k['region'] == region):
+            print(f"{k['region']} {k['sick_today']} {k['died_today']}")
+
+
+
 
 
 def add_today(stat_for_date):
@@ -108,10 +140,10 @@ def add_today(stat_for_date):
 
 
 if __name__ == '__main__':
-    print(check_update())
-    parse_date("15.08.2022")
-
-
-
-
-
+    if get_last_date() == TODAY_DATE:
+        print('Обновлялись')
+    else:
+        if check_update():
+            parse_date(TODAY_DATE_DOT)
+        else:
+            print('Нет обновлений на сайте')
